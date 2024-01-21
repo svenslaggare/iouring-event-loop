@@ -37,24 +37,14 @@ namespace event_loop {
 
     class EventLoopException : public std::exception {
     private:
+        int mErrorCode = 0;
         std::string mMessage;
     public:
-        explicit EventLoopException(const std::string& operation)
-            : mMessage(fmt::format("Operation '{}' failed.", operation)) {
+        explicit EventLoopException(const std::string& operation, int errorCode);
+        static int throwIfFailed(int result, const std::string& operation);
 
-        }
-
-        static int throwIfFailed(int result, const std::string& operation) {
-            if (result < 0) {
-                throw EventLoopException(operation);
-            }
-
-            return result;
-        }
-
-        const char* what() const noexcept override {
-            return mMessage.c_str();
-        }
+        int errorCode() const;
+        const char* what() const noexcept override;
     };
 
     std::string errorNumberToString(int errorNumber);

@@ -293,16 +293,14 @@ namespace event_loop {
         if (submit != nullptr) {
             submit->submit();
         } else {
-            if (io_uring_submit(&mRing) < 0) {
-                throw EventLoopException("io_uring_submit");
-            }
+            EventLoopException::throwIfFailed(io_uring_submit(&mRing), "io_uring_submit");
         }
     }
 
     io_uring_sqe* EventLoop::getSqe() {
         io_uring_sqe* sqe = io_uring_get_sqe(&mRing);
         if (sqe == nullptr) {
-            throw EventLoopException("io_uring_get_sqe");
+            throw EventLoopException("io_uring_get_sqe", -1);
         }
 
         return sqe;
