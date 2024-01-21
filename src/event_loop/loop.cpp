@@ -270,8 +270,9 @@ namespace event_loop {
                     return false;
                 }
 
-                std::string inputText { (char*)response.data, response.size };
-                for (auto& current : inputText) {
+                char* text = (char*)response.data;
+                for (std::size_t i = 0; i < response.size; i++) {
+                    auto current = text[i];
                     line += current;
                     if (current == '\n') {
                         if (!callback(context, { line })) {
