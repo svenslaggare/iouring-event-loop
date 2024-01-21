@@ -2,6 +2,7 @@
 
 #include <stop_token>
 #include <string>
+#include <optional>
 
 #include "fmt/format.h"
 
@@ -56,6 +57,9 @@ namespace event_loop {
         }
     };
 
+    std::string errorNumberToString(int errorNumber);
+    std::optional<std::string> tryExtractError(int result);
+
     template<typename T>
     struct TypedFd {
         Fd fd = -1;
@@ -103,5 +107,9 @@ namespace event_loop {
 
     struct File : public TypedFd<File> {
         using TypedFd::TypedFd;
+
+        static inline File stdinFile() {
+            return File { STDIN_FILENO };
+        }
     };
 }

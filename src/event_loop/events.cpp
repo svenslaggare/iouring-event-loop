@@ -73,7 +73,7 @@ namespace event_loop {
         }
 
         if (callback(context, { Socket { context.result }, clientAddress }) && context.result > 0) {
-            // Zero data
+            // Zero the data
             clientAddress = {};
 
             // Reuse
@@ -81,6 +81,27 @@ namespace event_loop {
             return true;
         }
 
+        return false;
+    }
+
+    ConnectEvent::ConnectEvent(EventId id, Socket client, sockaddr_in serverAddress, ConnectEvent::Callback callback)
+        : Event(id),
+          client(client),
+          serverAddress(serverAddress),
+          callback(std::move(callback)) {
+
+    }
+
+    std::string ConnectEvent::name() const {
+        return "Connect";
+    }
+
+    bool ConnectEvent::handle(EventContext& context) {
+        if (!callback) {
+            return false;
+        }
+
+        callback(context, { client, serverAddress, tryExtractError(context.result) });
         return false;
     }
 

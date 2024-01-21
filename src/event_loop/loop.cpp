@@ -36,7 +36,7 @@ namespace event_loop {
 
             auto eventId = cqe->user_data;
             auto& event = mEvents[eventId];
-            std::cout << "Event: " << event->id << ", type: " << event->name() << ", status: " << cqe->res << std::endl;
+//            std::cout << "Event: " << event->id << ", type: " << event->name() << ", status: " << cqe->res << std::endl;
 
             EventContext context { *this, stopSource, cqe->res };
             if (!event->handle(context)) {
@@ -130,6 +130,32 @@ namespace event_loop {
         auto sqe = getSqe();
 
         io_uring_prep_accept(sqe, event.server.fd, (sockaddr*)&event.clientAddress, &event.clientAddressLength, 0);
+        sqe->user_data = event.id;
+
+        submitRing(submit);
+    }
+
+    void EventLoop::connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit) {
+        Socket clientSocket { EventLoopException::throwIfFailed(socket(AF_INET, SOCK_STREAM, 0), "socket") };
+
+        sockaddr_in serverAddress {};
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_addr.s_addr = address;
+        serverAddress.sin_port = htons(port);
+
+        auto& event = createEvent<ConnectEvent>(clientSocket, serverAddress, std::move(callback));
+        try {
+            connect(event, submit);
+        } catch (const EventLoopException& e) {
+            removeEvent(event.id);
+            throw;
+        }
+    }
+
+    void EventLoop::connect(ConnectEvent& event, SubmitGuard* submit) {
+        auto sqe = getSqe();
+
+        io_uring_prep_connect(sqe, event.client.fd, (sockaddr*)&event.serverAddress, sizeof(event.serverAddress));
         sqe->user_data = event.id;
 
         submitRing(submit);
@@ -232,6 +258,34 @@ namespace event_loop {
         sqe->user_data = event.id;
 
         submitRing(submit);
+    }
+
+    void EventLoop::readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit) {
+        readFile(
+            File::stdinFile(),
+            std::move(buffer),
+            0,
+            [line = std::string(), callback = std::move(callback)](EventContext& context, const ReadFileEvent::Response& response) mutable {
+                if (!callback) {
+                    return false;
+                }
+
+                std::string inputText { (char*)response.data, response.size };
+                for (auto& current : inputText) {
+                    line += current;
+                    if (current == '\n') {
+                        if (!callback(context, { line })) {
+                            return false;
+                        }
+
+                        line.clear();
+                    }
+                }
+
+                return true;
+            },
+            submit
+        );
     }
 
     void EventLoop::submitRing(SubmitGuard* submit) {

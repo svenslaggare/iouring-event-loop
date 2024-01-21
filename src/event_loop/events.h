@@ -67,6 +67,25 @@ namespace event_loop {
         bool handle(EventContext& context) override;
     };
 
+    struct ConnectEvent : public Event {
+        Socket client;
+        sockaddr_in serverAddress {};
+
+        struct Response {
+            Socket client;
+            sockaddr_in serverAddress {};
+            std::optional<std::string> error;
+        };
+
+        using Callback = std::function<void (EventContext& context, const Response&)>;
+        Callback callback;
+
+        ConnectEvent(EventId id, Socket client, sockaddr_in serverAddress, Callback callback);
+
+        std::string name() const override;
+        bool handle(EventContext& context) override;
+    };
+
     struct ReceiveEvent : public Event {
         Socket client;
         Buffer buffer;
@@ -159,5 +178,13 @@ namespace event_loop {
 
         std::string name() const override;
         bool handle(EventContext& context) override;
+    };
+
+    struct ReadLineEvent {
+        struct Response {
+            std::string line;
+        };
+
+        using Callback = std::function<bool (EventContext& context, const Response&)>;
     };
 }

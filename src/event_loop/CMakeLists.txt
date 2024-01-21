@@ -1,5 +1,6 @@
 set(LOCAL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/common.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/loop.h

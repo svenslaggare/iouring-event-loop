@@ -33,8 +33,8 @@ int mainChatServer(int argc, char* argv[]) {
 
     auto tcpListener = eventLoop.tcpListen({}, 9000);
 
-    auto [serverIp, severPort] = getEndpoint(tcpListener.address());
-    std::cout << "Server socket: " << tcpListener.socket() << " = " << serverIp << ":" << severPort << std::endl;
+    auto [serverIp, serverPort] = getEndpoint(tcpListener.address());
+    std::cout << "Server socket: " << tcpListener.socket() << " = " << serverIp << ":" << serverPort << std::endl;
 
     std::map<Socket, ChatClient> clients;
     auto sendCallback = [&clients](EventContext& context, const SendEvent::Response& response) {
@@ -96,21 +96,55 @@ int mainChatServer(int argc, char* argv[]) {
     return 0;
 }
 
-int mainFile(int argc, char* argv[]) {
+int mainChatClient(int argc, char* argv[]) {
+    using namespace std::chrono_literals;
     using namespace event_loop;
 
     std::stop_source stopSource;
     EventLoop eventLoop;
 
-    eventLoop.openFile("/home/antjans/lorem.txt", [](EventContext& context, const OpenFileEvent::Response& response) {
-        std::cout << "Opened file: " << response.file << std::endl;
-        if (response.file) {
-            std::string text;
-            context.eventLoop.readFile(response.file, Buffer { 256 }, 0, [text](EventContext& context, const ReadFileEvent::Response& response) mutable {
-                text += std::string { (char*)response.data, response.size };
+    eventLoop.connect(inet_addr("127.0.0.1"), 9000, [](EventContext& context, const ConnectEvent::Response& response) {
+        if (response.error) {
+            std::cout << "Failed to connect due to: " << *response.error << std::endl;
+            return;
+        }
 
-                if (response.size == 0) {
-                    std::cout << text;
+        auto [serverIp, serverPort] = getEndpoint(response.serverAddress);
+        std::cout << "Connected to server: " << response.client << " = " << serverIp << ":" << serverPort << std::endl;
+
+        context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
+            std::string text { (char*)response.data, response.size };
+            std::cout << text;
+            return true;
+        });
+
+        auto client = response.client;
+        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response    & response) {
+            context.eventLoop.send(client, Buffer::fromString(response.line), {});
+            return true;
+        });
+    });
+
+    eventLoop.run(stopSource);
+
+    return 0;
+}
+
+int mainFile(int argc, char* argv[]) {
+    using namespace event_loop;
+
+        std::stop_source stopSource;
+        EventLoop eventLoop;
+
+        eventLoop.openFile("/home/antjans/lorem.txt", [](EventContext& context, const OpenFileEvent::Response& response) {
+            std::cout << "Opened file: " << response.file << std::endl;
+            if (response.file) {
+                std::string text;
+                context.eventLoop.readFile(response.file, Buffer { 256 }, 0, [text](EventContext& context, const ReadFileEvent::Response& response) mutable {
+                    text += std::string { (char*)response.data, response.size };
+
+                    if (response.size == 0) {
+                        std::cout << text;
                     return false;
                 } else {
                     return true;
@@ -136,6 +170,16 @@ int mainFile(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    return mainChatServer(argc, argv);
-//    return mainFile(argc, argv);
+    std::string command = "server";
+    if (argc >= 2) {
+        command = argv[1];
+    }
+
+    if (command == "server") {
+        return mainChatServer(argc, argv);
+    } else if (command == "client") {
+        return mainChatClient(argc, argv);
+    } else if (command == "file") {
+        return mainFile(argc, argv);
+    }
 }

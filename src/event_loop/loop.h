@@ -82,6 +82,7 @@ namespace event_loop {
         // Network
         TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 10);
         void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
         void receive(Socket client, Buffer buffer, ReceiveEvent::Callback callback, SubmitGuard* submit = nullptr);
         void send(Socket client, Buffer data, SendEvent::Callback callback, SubmitGuard* submit = nullptr);
 
@@ -90,6 +91,8 @@ namespace event_loop {
         void openFile(std::filesystem::path path, int flags, mode_t mode, OpenFileEvent::Callback callback, SubmitGuard* submit = nullptr);
         void readFile(File file, Buffer buffer, std::uint64_t offset, ReadFileEvent::Callback callback, SubmitGuard* submit = nullptr);
         void writeFile(File file, Buffer data, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
+
+        void readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit = nullptr);
     private:
         friend class SubmitGuard;
 
@@ -103,6 +106,7 @@ namespace event_loop {
         void timer(TimerEvent& event, SubmitGuard* submit);
 
         void accept(AcceptEvent& event, SubmitGuard* submit);
+        void connect(ConnectEvent& event, SubmitGuard* submit);
         void receive(ReceiveEvent& event, SubmitGuard* submit);
         void send(SendEvent& event, SubmitGuard* submit);
 
