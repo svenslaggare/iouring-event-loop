@@ -23,12 +23,12 @@
 #include "buffer.h"
 
 namespace event_loop {
-    class TcpServer {
+    class TcpListener {
     private:
         Socket mSocket;
         sockaddr_in mAddress;
     public:
-        explicit TcpServer(Socket socket, sockaddr_in address)
+        explicit TcpListener(Socket socket, sockaddr_in address)
             : mSocket(socket),
               mAddress(address)  {
 
@@ -80,8 +80,8 @@ namespace event_loop {
         void timer(std::chrono::duration<double> duration, TimerEvent::Callback callback, SubmitGuard* submit = nullptr);
 
         // Network
-        TcpServer tcpListen(in_addr address, std::uint16_t port, int backlog = 10);
-        void accept(TcpServer& tcpServer, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 10);
+        void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
         void receive(Socket client, Buffer buffer, ReceiveEvent::Callback callback, SubmitGuard* submit = nullptr);
         void send(Socket client, Buffer data, SendEvent::Callback callback, SubmitGuard* submit = nullptr);
 

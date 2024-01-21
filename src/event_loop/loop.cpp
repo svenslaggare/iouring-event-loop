@@ -93,7 +93,7 @@ namespace event_loop {
         submitRing(submit);
     }
 
-    TcpServer EventLoop::tcpListen(in_addr address, std::uint16_t port, int backlog) {
+    TcpListener EventLoop::tcpListen(in_addr address, std::uint16_t port, int backlog) {
         auto socketFd = EventLoopException::throwIfFailed(socket(PF_INET, SOCK_STREAM, 0), "socket");
         int enable = 1;
         EventLoopException::throwIfFailed(
@@ -113,11 +113,11 @@ namespace event_loop {
         );
 
         EventLoopException::throwIfFailed(listen(socketFd, backlog), "listen");
-        return TcpServer { Socket { socketFd }, serverAddress };
+        return TcpListener { Socket { socketFd }, serverAddress };
     }
 
-    void EventLoop::accept(TcpServer& tcpServer, AcceptEvent::Callback callback, SubmitGuard* submit) {
-        auto& event = createEvent<AcceptEvent>(tcpServer.socket(), std::move(callback));
+    void EventLoop::accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
+        auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
         try {
             accept(event, submit);
         } catch (const EventLoopException& e) {

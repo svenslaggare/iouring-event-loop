@@ -31,10 +31,10 @@ int mainChatServer(int argc, char* argv[]) {
     std::stop_source stopSource;
     EventLoop eventLoop;
 
-    auto tcpServer = eventLoop.tcpListen({}, 9000);
+    auto tcpListener = eventLoop.tcpListen({}, 9000);
 
-    auto [serverIp, severPort] = getEndpoint(tcpServer.address());
-    std::cout << "Server socket: " << tcpServer.socket() << " = " << serverIp << ":" << severPort << std::endl;
+    auto [serverIp, severPort] = getEndpoint(tcpListener.address());
+    std::cout << "Server socket: " << tcpListener.socket() << " = " << serverIp << ":" << severPort << std::endl;
 
     std::map<Socket, ChatClient> clients;
     auto sendCallback = [&clients](EventContext& context, const SendEvent::Response& response) {
@@ -43,7 +43,7 @@ int mainChatServer(int argc, char* argv[]) {
         }
     };
 
-    eventLoop.accept(tcpServer, [&](EventContext& context, const AcceptEvent::Response& response) {
+    eventLoop.accept(tcpListener, [&](EventContext& context, const AcceptEvent::Response& response) {
         ChatClient client { response.client, response.clientAddress };
         std::cout << "Accepted client: " << client << std::endl;
         clients.insert({ response.client, client });
