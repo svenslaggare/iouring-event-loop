@@ -21,8 +21,8 @@ namespace event_loop {
         mSubmitted++;
     }
 
-    EventLoop::EventLoop() {
-        EventLoopException::throwIfFailed(io_uring_queue_init(256, &mRing, 0), "io_uring_queue_init");
+    EventLoop::EventLoop(std::uint32_t depth) {
+        EventLoopException::throwIfFailed(io_uring_queue_init(depth, &mRing, 0), "io_uring_queue_init");
     }
 
     EventLoop::~EventLoop() {

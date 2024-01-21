@@ -65,7 +65,7 @@ namespace event_loop {
         EventId mNextEventId = 1;
         std::unordered_map<EventId, std::unique_ptr<Event>> mEvents;
     public:
-        EventLoop();
+        explicit EventLoop(std::uint32_t depth = 256);
         ~EventLoop();
 
         EventLoop(const EventLoop&) = delete;
