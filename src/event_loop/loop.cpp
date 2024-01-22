@@ -40,9 +40,11 @@ namespace event_loop {
     }
 
     void EventLoop::run(std::stop_source& stopSource) {
+        using namespace std::chrono_literals;
+
         while (!stopSource.stop_requested()) {
             io_uring_cqe* cqe = nullptr;
-            auto delay = createKernelTimeSpec(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(0.5)));
+            auto delay = createKernelTimeSpec(std::chrono::duration_cast<std::chrono::nanoseconds>(0.5s));
             auto result = io_uring_wait_cqe_timeout(&mRing, &cqe, &delay);
             if (result == -ETIME) {
                 executeDispatched();
