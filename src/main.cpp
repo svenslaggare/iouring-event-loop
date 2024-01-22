@@ -64,7 +64,7 @@ int mainChatServer(int argc, char* argv[]) {
             std::cout << "Message: " << text;
 
             if (text == "exit\n") {
-                clients.erase(response.client);
+                removeClient(response.client);
                 context.eventLoop.close(response.client, {});
                 return false;
             }
