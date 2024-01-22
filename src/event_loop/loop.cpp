@@ -3,8 +3,18 @@
 
 #include <fcntl.h>
 #include <cxxabi.h>
+#include <mutex>
 
 namespace event_loop {
+    namespace {
+        __kernel_timespec createKernelTimeSpec(std::chrono::nanoseconds delay) {
+            __kernel_timespec timespec {};
+            timespec.tv_sec = delay.count() / std::chrono::nanoseconds::period::den;
+            timespec.tv_nsec = delay.count() % std::chrono::nanoseconds::period::den;
+            return timespec;
+        }
+    }
+
     SubmitGuard::SubmitGuard(EventLoop& eventLoop)
         : mEventLoop(eventLoop) {
 
@@ -32,7 +42,14 @@ namespace event_loop {
     void EventLoop::run(std::stop_source& stopSource) {
         while (!stopSource.stop_requested()) {
             io_uring_cqe* cqe = nullptr;
-            EventLoopException::throwIfFailed(io_uring_wait_cqe(&mRing, &cqe), "io_uring_wait_cqe");
+            auto delay = createKernelTimeSpec(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(0.5)));
+            auto result = io_uring_wait_cqe_timeout(&mRing, &cqe, &delay);
+            if (result == -ETIME) {
+                executeDispatched();
+                continue;
+            }
+
+            EventLoopException::throwIfFailed(result, "io_uring_wait_cqe_timeout");
 
             auto eventId = cqe->user_data;
             auto& event = mEvents[eventId];
@@ -44,7 +61,22 @@ namespace event_loop {
             }
 
             io_uring_cqe_seen(&mRing, cqe);
+            executeDispatched();
         }
+    }
+
+    void EventLoop::dispatch(DispatchedCallback callback) {
+        std::scoped_lock guard(mDispatchedMutex);
+        mDispatched.push_back(std::move(callback));
+    }
+
+    void EventLoop::executeDispatched() {
+        std::scoped_lock guard(mDispatchedMutex);
+
+        for (auto& dispatch : mDispatched) {
+            dispatch(*this);
+        }
+        mDispatched.clear();
     }
 
     void EventLoop::close(AnyFd fd, CloseEvent::Callback callback, SubmitGuard* submit) {
@@ -82,12 +114,10 @@ namespace event_loop {
 
         auto now = TimerEvent::Clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - event.startTime);
-        auto sleepTime = std::max(0L, (event.duration - elapsed).count());
+        auto sleepTime = std::max(std::chrono::nanoseconds(0), event.duration - elapsed);
+        event.eventDelay = createKernelTimeSpec(sleepTime);
 
-        event.timespec.tv_sec = sleepTime / std::chrono::nanoseconds::period::den;
-        event.timespec.tv_nsec = sleepTime % std::chrono::nanoseconds::period::den;
-
-        io_uring_prep_timeout(sqe, &event.timespec, 1, 0);
+        io_uring_prep_timeout(sqe, &event.eventDelay, 1, 0);
         sqe->user_data = event.id;
 
         submitRing(submit);

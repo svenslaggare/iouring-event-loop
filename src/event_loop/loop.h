@@ -59,11 +59,16 @@ namespace event_loop {
     };
 
     class EventLoop {
+    public:
+        using DispatchedCallback = std::function<void (EventLoop&)>;
     private:
         io_uring mRing {};
 
         EventId mNextEventId = 1;
         std::unordered_map<EventId, std::unique_ptr<Event>> mEvents;
+
+        std::mutex mDispatchedMutex;
+        std::vector<DispatchedCallback> mDispatched;
     public:
         explicit EventLoop(std::uint32_t depth = 256);
         ~EventLoop();
@@ -72,6 +77,8 @@ namespace event_loop {
         EventLoop& operator=(const EventLoop&) = delete;
 
         void run(std::stop_source& stopSource);
+
+        void dispatch(DispatchedCallback callback);
 
         // Generic
         void close(AnyFd fd, CloseEvent::Callback callback, SubmitGuard* submit = nullptr);
@@ -100,6 +107,8 @@ namespace event_loop {
         friend class ReceiveEvent;
         friend class AcceptEvent;
         friend class ReadFileEvent;
+
+        void executeDispatched();
 
         void close(CloseEvent& event, SubmitGuard* submit);
 

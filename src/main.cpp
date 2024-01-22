@@ -37,9 +37,15 @@ int mainChatServer(int argc, char* argv[]) {
     std::cout << "Server socket: " << tcpListener.socket() << " = " << serverIp << ":" << serverPort << std::endl;
 
     std::map<Socket, ChatClient> clients;
-    auto sendCallback = [&clients](EventContext& context, const SendEvent::Response& response) {
+    auto removeClient = [&](Socket client) {
+        if (clients.erase(client) > 0) {
+            std::cout << "Client: " << client << " disconnected" << std::endl;
+        }
+    };
+
+    auto sendCallback = [&removeClient](EventContext& context, const SendEvent::Response& response) {
         if (response.size == 0) {
-            clients.erase(response.client);
+            removeClient(response.client);
         }
     };
 
@@ -48,9 +54,9 @@ int mainChatServer(int argc, char* argv[]) {
         std::cout << "Accepted client: " << client << std::endl;
         clients.insert({ response.client, client });
 
-        context.eventLoop.receive(response.client, Buffer { 1024 }, [&clients, &sendCallback](EventContext& context, const ReceiveEvent::Response& response) {
+        context.eventLoop.receive(response.client, Buffer { 1024 }, [&clients, &sendCallback, &removeClient](EventContext& context, const ReceiveEvent::Response& response) {
             if (response.size == 0) {
-                clients.erase(response.client);
+                removeClient(response.client);
                 return false;
             }
 
@@ -89,6 +95,10 @@ int mainChatServer(int argc, char* argv[]) {
         }
 
         return true;
+    });
+
+    eventLoop.dispatch([](EventLoop& eventLoop) {
+       std::cout << "Dispatched callback..." << std::endl;
     });
 
     eventLoop.run(stopSource);
@@ -133,20 +143,20 @@ int mainChatClient(int argc, char* argv[]) {
 int mainFile(int argc, char* argv[]) {
     using namespace event_loop;
 
-        std::stop_source stopSource;
-        EventLoop eventLoop;
+    std::stop_source stopSource;
+    EventLoop eventLoop;
 
-        eventLoop.openFile("/home/antjans/lorem.txt", [](EventContext& context, const OpenFileEvent::Response& response) {
-            std::cout << "Opened file: " << response.file << std::endl;
-            if (response.file) {
-                std::string text;
-                context.eventLoop.readFile(response.file, Buffer { 256 }, 0, [text](EventContext& context, const ReadFileEvent::Response& response) mutable {
-                    text += std::string { (char*)response.data, response.size };
+    eventLoop.openFile("/home/antjans/lorem.txt", [](EventContext& context, const OpenFileEvent::Response& response) {
+        std::cout << "Opened file: " << response.file << std::endl;
+        if (response.file) {
+            std::string text;
+            context.eventLoop.readFile(response.file, Buffer { 256 }, 0, [text](EventContext& context, const ReadFileEvent::Response& response) mutable {
+                text += std::string { (char*)response.data, response.size };
 
-                    if (response.size == 0) {
-                        std::cout << text;
+                if (response.size == 0) {
+                    std::cout << text;
                     return false;
-                } else {
+                }  else {
                     return true;
                 }
             });

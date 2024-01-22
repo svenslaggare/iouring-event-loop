@@ -32,7 +32,7 @@ namespace event_loop {
 
         Clock::time_point startTime;
         std::chrono::nanoseconds duration;
-        __kernel_timespec timespec {};
+        __kernel_timespec eventDelay {};
 
         struct Response {
             double elapsed = 0.0;
