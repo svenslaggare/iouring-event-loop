@@ -119,7 +119,7 @@ int mainChatClient(int argc, char* argv[]) {
             return;
         }
 
-        auto [serverIp, serverPort] = getEndpoint(response.serverAddress);
+        auto [serverIp, serverPort] = getEndpoint(response.serverAddressInet());
         std::cout << "Connected to server: " << response.client << " = " << serverIp << ":" << serverPort << std::endl;
 
         context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
@@ -158,6 +158,116 @@ int mainUdpServer(int argc, char* argv[]) {
         std::cout << "Message: " << text;
 
         return true;
+    });
+
+    eventLoop.run(stopSource);
+
+    return 0;
+}
+
+int mainChatServerUDS(int argc, char* argv[]) {
+    using namespace std::chrono_literals;
+    using namespace event_loop;
+
+    std::stop_source stopSource;
+    EventLoop eventLoop;
+
+    auto udsListener = eventLoop.udsListen("test.sock");
+
+    std::cout << "Server socket: " << udsListener.socket() << std::endl;
+
+    std::map<Socket, ChatClient> clients;
+    auto removeClient = [&](Socket client) {
+        if (clients.erase(client) > 0) {
+            std::cout << "Client: " << client << " disconnected" << std::endl;
+        }
+    };
+
+    auto sendCallback = [&removeClient](EventContext& context, const SendEvent::Response& response) {
+        if (response.size == 0) {
+            removeClient(response.client);
+        }
+    };
+
+    eventLoop.accept(udsListener, [&](EventContext& context, const AcceptEvent::Response& response) {
+        ChatClient client { response.client, response.clientAddress };
+        std::cout << "Accepted client: " << client << std::endl;
+        clients.insert({ response.client, client });
+
+        context.eventLoop.receive(response.client, Buffer { 1024 }, [&clients, &sendCallback, &removeClient](EventContext& context, const ReceiveEvent::Response& response) {
+            if (response.size == 0) {
+                removeClient(response.client);
+                return false;
+            }
+
+            std::string text { (char*)response.data, response.size };
+            std::cout << "Message: " << text;
+
+            if (text == "exit\n") {
+                removeClient(response.client);
+                context.eventLoop.close(response.client, {});
+                return false;
+            }
+
+            auto output = Buffer::fromString("Other: " + text);
+
+            SubmitGuard submitGuard(context.eventLoop);
+            for (auto& [_, currentClient] : clients) {
+                if (response.client != currentClient.socket) {
+                    context.eventLoop.send(currentClient.socket, output, sendCallback, &submitGuard);
+                }
+            }
+
+            return true;
+        });
+
+        return true;
+    });
+
+    eventLoop.timer(7.5s, [&clients, &sendCallback](EventContext& context, const TimerEvent::Response& response) {
+        std::cout << "Broadcasting message (elapsed: " << response.elapsed << ")" << std::endl;
+
+        auto output = Buffer::fromString("Hello, All!\n");
+
+        SubmitGuard submitGuard(context.eventLoop);
+        for (auto& [_, currentClient] : clients) {
+            context.eventLoop.send(currentClient.socket, output, sendCallback, &submitGuard);
+        }
+
+        return true;
+    });
+
+    eventLoop.run(stopSource);
+
+    return 0;
+}
+
+int mainChatClientUDS(int argc, char* argv[]) {
+    using namespace std::chrono_literals;
+    using namespace event_loop;
+
+    std::stop_source stopSource;
+    EventLoop eventLoop;
+
+    eventLoop.connect("test.sock", [](EventContext& context, const ConnectEvent::Response& response) {
+        if (response.error) {
+            std::cout << "Failed to connect due to: " << *response.error << std::endl;
+            return;
+        }
+
+        std::cout << "Connected to server: " << response.client << " - " << response.serverAddressUnix().sun_path << std::endl;
+
+        context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
+            std::string text { (char*)response.data, response.size };
+            std::cout << text;
+            return true;
+        });
+
+        auto client = response.client;
+        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response    & response) {
+            context.eventLoop.send(client, Buffer::fromString(response.line), {});
+            return true;
+        });
     });
 
     eventLoop.run(stopSource);
@@ -224,6 +334,10 @@ int main(int argc, char* argv[]) {
         return mainChatClient(argc, argv);
     } else if (command == "udp_server") {
         return mainUdpServer(argc, argv);
+    } else if (command == "uds_server") {
+        return mainChatServerUDS(argc, argv);
+    } else if (command == "uds_client") {
+        return mainChatClientUDS(argc, argv);
     } else if (command == "file") {
         return mainFile(argc, argv);
     }

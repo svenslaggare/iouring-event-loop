@@ -92,6 +92,22 @@ namespace event_loop {
 
     }
 
+    ConnectEvent::ConnectEvent(EventId id, Socket client, sockaddr_un serverAddress, ConnectEvent::Callback callback)
+        : Event(id),
+          client(client),
+          serverAddress(serverAddress),
+          callback(std::move(callback))  {
+
+    }
+
+    const sockaddr_in& ConnectEvent::Response::serverAddressInet() const {
+        return std::get<sockaddr_in>(serverAddress);
+    }
+
+    const sockaddr_un& ConnectEvent::Response::serverAddressUnix() const {
+        return std::get<sockaddr_un>(serverAddress);
+    }
+
     std::string ConnectEvent::name() const {
         return "Connect";
     }

@@ -13,6 +13,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/un.h>
 
 #include <liburing.h>
 #include <iostream>
@@ -39,6 +40,26 @@ namespace event_loop {
         }
 
         const sockaddr_in& address() const {
+            return mAddress;
+        }
+    };
+
+    class UDSListener {
+    private:
+        Socket mSocket;
+        sockaddr_un mAddress;
+    public:
+        explicit UDSListener(Socket socket, sockaddr_un address)
+            : mSocket(socket),
+              mAddress(address)  {
+
+        }
+
+        Socket socket() const {
+            return mSocket;
+        }
+
+        const sockaddr_un& address() const {
             return mAddress;
         }
     };
@@ -86,11 +107,16 @@ namespace event_loop {
         // Timer
         void timer(std::chrono::duration<double> duration, TimerEvent::Callback callback, SubmitGuard* submit = nullptr);
 
-        // Network
-        TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 10);
+        // Sockets
+        TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 32);
         Socket udpReceiver(in_addr address, std::uint16_t port);
+        UDSListener udsListen(const std::string& path, int backlog = 32);
+
         void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void accept(UDSListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void connect(const std::string& path, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
+
         void receive(Socket client, Buffer buffer, ReceiveEvent::Callback callback, SubmitGuard* submit = nullptr);
         void send(Socket client, Buffer data, SendEvent::Callback callback, SubmitGuard* submit = nullptr);
 

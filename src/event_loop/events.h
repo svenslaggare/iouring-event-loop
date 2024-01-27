@@ -3,8 +3,10 @@
 #include <functional>
 #include <cstdint>
 #include <filesystem>
+#include <variant>
 
 #include <netinet/in.h>
+#include <sys/un.h>
 #include <linux/time_types.h>
 #include <sys/stat.h>
 
@@ -70,18 +72,22 @@ namespace event_loop {
 
     struct ConnectEvent : public Event {
         Socket client;
-        sockaddr_in serverAddress {};
+        std::variant<sockaddr_in, sockaddr_un> serverAddress;
 
         struct Response {
             Socket client;
-            sockaddr_in serverAddress {};
+            std::variant<sockaddr_in, sockaddr_un> serverAddress;
             std::optional<std::string> error;
+
+            const sockaddr_in& serverAddressInet() const;
+            const sockaddr_un& serverAddressUnix() const;
         };
 
         using Callback = std::function<void (EventContext& context, const Response&)>;
         Callback callback;
 
         ConnectEvent(EventId id, Socket client, sockaddr_in serverAddress, Callback callback);
+        ConnectEvent(EventId id, Socket client, sockaddr_un serverAddress, Callback callback);
 
         std::string name() const override;
         bool handle(EventContext& context) override;

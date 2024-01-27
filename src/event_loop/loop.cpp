@@ -2,7 +2,7 @@
 #include "events.h"
 
 #include <fcntl.h>
-#include <cxxabi.h>
+
 #include <mutex>
 
 namespace event_loop {
@@ -13,6 +13,9 @@ namespace event_loop {
             timespec.tv_nsec = delay.count() % std::chrono::nanoseconds::period::den;
             return timespec;
         }
+
+        template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+        template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
     }
 
     SubmitGuard::SubmitGuard(EventLoop& eventLoop)
@@ -133,19 +136,19 @@ namespace event_loop {
             "setsockopt(SO_REUSEADDR)"
         );
 
-        sockaddr_in serverAddress {};
-        serverAddress.sin_family = AF_INET;
-        serverAddress.sin_addr = address;
-        serverAddress.sin_port = htons(port);
-        serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+        sockaddr_in socketAddress {};
+        socketAddress.sin_family = AF_INET;
+        socketAddress.sin_addr = address;
+        socketAddress.sin_port = htons(port);
+        socketAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 
         EventLoopException::throwIfFailed(
-            bind(socketFd, (const sockaddr*)&serverAddress, sizeof(serverAddress)),
+            bind(socketFd, (const sockaddr*)&socketAddress, sizeof(socketAddress)),
             "bind"
         );
 
         EventLoopException::throwIfFailed(listen(socketFd, backlog), "listen");
-        return TcpListener { Socket { socketFd }, serverAddress };
+        return TcpListener { Socket { socketFd }, socketAddress };
     }
 
     Socket EventLoop::udpReceiver(in_addr address, std::uint16_t port) {
@@ -165,7 +168,34 @@ namespace event_loop {
         return Socket { socketFd };
     }
 
+    UDSListener EventLoop::udsListen(const std::string& path, int backlog) {
+        auto socketFd = EventLoopException::throwIfFailed(socket(PF_UNIX, SOCK_STREAM, 0), "socket");
+
+        sockaddr_un socketAddress {};
+        socketAddress.sun_family = AF_UNIX;
+        strcpy(socketAddress.sun_path, path.c_str());
+        unlink(path.c_str());
+
+        EventLoopException::throwIfFailed(
+            bind(socketFd, (const sockaddr*)&socketAddress, sizeof(socketAddress)),
+            "bind"
+        );
+
+        EventLoopException::throwIfFailed(listen(socketFd, backlog), "listen");
+        return UDSListener { Socket { socketFd }, socketAddress };
+    }
+
     void EventLoop::accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
+        auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
+        try {
+            accept(event, submit);
+        } catch (const EventLoopException& e) {
+            removeEvent(event.id);
+            throw;
+        }
+    }
+
+    void EventLoop::accept(UDSListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
         auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
         try {
             accept(event, submit);
@@ -201,10 +231,34 @@ namespace event_loop {
         }
     }
 
+    void EventLoop::connect(const std::string& path, ConnectEvent::Callback callback, SubmitGuard* submit) {
+        Socket clientSocket { EventLoopException::throwIfFailed(socket(AF_UNIX, SOCK_STREAM, 0), "socket") };
+
+        sockaddr_un serverAddress {};
+        serverAddress.sun_family = AF_UNIX;
+        strcpy(serverAddress.sun_path, path.c_str());
+
+        auto& event = createEvent<ConnectEvent>(clientSocket, serverAddress, std::move(callback));
+        try {
+            connect(event, submit);
+        } catch (const EventLoopException& e) {
+            removeEvent(event.id);
+            throw;
+        }
+    }
+
     void EventLoop::connect(ConnectEvent& event, SubmitGuard* submit) {
         auto sqe = getSqe();
 
-        io_uring_prep_connect(sqe, event.client.fd, (sockaddr*)&event.serverAddress, sizeof(event.serverAddress));
+        std::visit(overloaded {
+            [&](const sockaddr_in& serverAddress) {
+                io_uring_prep_connect(sqe, event.client.fd, (sockaddr*)&serverAddress, sizeof(serverAddress));
+            },
+            [&](const sockaddr_un& serverAddress) {
+                io_uring_prep_connect(sqe, event.client.fd, (sockaddr*)&serverAddress, sizeof(serverAddress));
+            },
+        }, event.serverAddress);
+
         sqe->user_data = event.id;
 
         submitRing(submit);
