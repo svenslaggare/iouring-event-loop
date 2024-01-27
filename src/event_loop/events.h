@@ -6,6 +6,7 @@
 
 #include <netinet/in.h>
 #include <linux/time_types.h>
+#include <sys/stat.h>
 
 #include "common.h"
 #include "buffer.h"
@@ -175,6 +176,25 @@ namespace event_loop {
         Callback callback;
 
         WriteFileEvent(EventId id, File file, Buffer data, Callback callback);
+
+        std::string name() const override;
+        bool handle(EventContext& context) override;
+    };
+
+    struct ReadFileStatsEvent : public Event {
+        std::filesystem::path path;
+        int flags = 0;
+        unsigned int mask = 0;
+        struct statx stats {};
+
+        struct Response {
+            std::optional<struct statx> stats;
+        };
+
+        using Callback = std::function<void (EventContext& context, const Response&)>;
+        Callback callback;
+
+        ReadFileStatsEvent(EventId id, std::filesystem::path path, Callback callback);
 
         std::string name() const override;
         bool handle(EventContext& context) override;

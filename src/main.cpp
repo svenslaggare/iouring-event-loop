@@ -163,6 +163,14 @@ int mainFile(int argc, char* argv[]) {
         }
     });
 
+    eventLoop.readFileStats("/home/antjans/lorem.txt", [](EventContext& context, const ReadFileStatsEvent::Response& response) {
+        if (response.stats) {
+            std::cout << response.stats->stx_size << std::endl;
+        } else {
+            std::cout << "Failed to open file due to: " << *tryExtractError(context.result) << std::endl;
+        }
+    });
+
     eventLoop.openFile("/home/antjans/output.txt", O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, [](EventContext& context, const OpenFileEvent::Response& response) {
         std::cout << "Opened file: " << response.file << std::endl;
         if (response.file) {

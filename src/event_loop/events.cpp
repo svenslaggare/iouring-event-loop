@@ -222,4 +222,30 @@ namespace event_loop {
         callback(context, { file, context.resultAsSize() });
         return false;
     }
+
+    ReadFileStatsEvent::ReadFileStatsEvent(EventId id, std::filesystem::path path, ReadFileStatsEvent::Callback callback)
+        : Event(id),
+          path(std::move(path)),
+          callback(std::move(callback))
+    {
+
+    }
+
+    std::string ReadFileStatsEvent::name() const {
+        return "ReadFileStats";
+    }
+
+    bool ReadFileStatsEvent::handle(EventContext& context) {
+        if (!callback) {
+            return false;
+        }
+
+        Response response;
+        if (context.result >= 0) {
+            response.stats = { stats };
+        }
+
+        callback(context, response);
+        return false;
+    }
 }

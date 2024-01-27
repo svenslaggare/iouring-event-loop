@@ -292,6 +292,25 @@ namespace event_loop {
         submitRing(submit);
     }
 
+    void EventLoop::readFileStats(std::filesystem::path path, ReadFileStatsEvent::Callback callback, SubmitGuard* submit) {
+        auto& event = createEvent<ReadFileStatsEvent>(std::move(path), std::move(callback));
+        try {
+            readFileStats(event, submit);
+        } catch (const EventLoopException& e) {
+            removeEvent(event.id);
+            throw;
+        }
+    }
+
+    void EventLoop::readFileStats(ReadFileStatsEvent& event, SubmitGuard* submit) {
+        auto sqe = getSqe();
+
+        io_uring_prep_statx(sqe, AT_FDCWD, event.path.c_str(), event.flags, event.mask, &event.stats);
+        sqe->user_data = event.id;
+
+        submitRing(submit);
+    }
+
     void EventLoop::readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit) {
         readFile(
             File::stdinFile(),

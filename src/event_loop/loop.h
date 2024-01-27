@@ -98,7 +98,9 @@ namespace event_loop {
         void openFile(std::filesystem::path path, int flags, mode_t mode, OpenFileEvent::Callback callback, SubmitGuard* submit = nullptr);
         void readFile(File file, Buffer buffer, std::uint64_t offset, ReadFileEvent::Callback callback, SubmitGuard* submit = nullptr);
         void writeFile(File file, Buffer data, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void readFileStats(std::filesystem::path path, ReadFileStatsEvent::Callback callback, SubmitGuard* submit = nullptr);
 
+        // Standard I/O
         void readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit = nullptr);
     private:
         friend class SubmitGuard;
@@ -122,6 +124,7 @@ namespace event_loop {
         void openFile(OpenFileEvent& event, SubmitGuard* submit);
         void readFile(ReadFileEvent& event, SubmitGuard* submit);
         void writeFile(WriteFileEvent& event, SubmitGuard* submit);
+        void readFileStats(ReadFileStatsEvent& event, SubmitGuard* submit);
 
         void submitRing(SubmitGuard* submit);
         io_uring_sqe* getSqe();
