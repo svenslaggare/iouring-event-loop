@@ -140,6 +140,31 @@ int mainChatClient(int argc, char* argv[]) {
     return 0;
 }
 
+int mainUdpServer(int argc, char* argv[]) {
+    using namespace std::chrono_literals;
+    using namespace event_loop;
+
+    std::stop_source stopSource;
+    EventLoop eventLoop;
+
+    auto udpSocket = eventLoop.udpReceiver({}, 9000);
+
+    eventLoop.receive(udpSocket, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
+        if (response.size == 0) {
+            return false;
+        }
+
+        std::string text { (char*)response.data, response.size };
+        std::cout << "Message: " << text;
+
+        return true;
+    });
+
+    eventLoop.run(stopSource);
+
+    return 0;
+}
+
 int mainFile(int argc, char* argv[]) {
     using namespace event_loop;
 
@@ -197,6 +222,8 @@ int main(int argc, char* argv[]) {
         return mainChatServer(argc, argv);
     } else if (command == "client") {
         return mainChatClient(argc, argv);
+    } else if (command == "udp_server") {
+        return mainUdpServer(argc, argv);
     } else if (command == "file") {
         return mainFile(argc, argv);
     }

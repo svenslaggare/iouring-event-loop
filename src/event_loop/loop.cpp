@@ -148,6 +148,23 @@ namespace event_loop {
         return TcpListener { Socket { socketFd }, serverAddress };
     }
 
+    Socket EventLoop::udpReceiver(in_addr address, std::uint16_t port) {
+        auto socketFd = EventLoopException::throwIfFailed(socket(PF_INET, SOCK_DGRAM, 0), "socket");
+
+        sockaddr_in serverAddress {};
+        serverAddress.sin_family = AF_INET;
+        serverAddress.sin_addr = address;
+        serverAddress.sin_port = htons(port);
+        serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+
+        EventLoopException::throwIfFailed(
+            bind(socketFd, (const sockaddr*)&serverAddress, sizeof(serverAddress)),
+            "bind"
+        );
+
+        return Socket { socketFd };
+    }
+
     void EventLoop::accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
         auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
         try {

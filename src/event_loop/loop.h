@@ -88,6 +88,7 @@ namespace event_loop {
 
         // Network
         TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 10);
+        Socket udpReceiver(in_addr address, std::uint16_t port);
         void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
         void receive(Socket client, Buffer buffer, ReceiveEvent::Callback callback, SubmitGuard* submit = nullptr);
