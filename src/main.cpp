@@ -15,12 +15,21 @@ std::tuple<std::string, std::uint16_t> getEndpoint(const sockaddr_in& address) {
 
 struct ChatClient {
     event_loop::Socket socket;
-    sockaddr_in address {};
+    event_loop::SocketAddress address {};
 };
 
 std::ostream& operator<<(std::ostream& os, const ChatClient& client) {
-    auto [ip, port] = getEndpoint(client.address);
-    os << client.socket << " = " << ip << ":" << port;
+    os << client.socket << " = ";
+    std::visit(overloaded {
+        [&](const sockaddr_in& address) {
+            auto [ip, port] = getEndpoint(address);
+            os << ip << ":" << port;
+        },
+        [&](const sockaddr_un& address) {
+            os << address.sun_path;
+        }
+    }, client.address);
+
     return os;
 }
 
@@ -84,7 +93,7 @@ int mainChatServer(int argc, char* argv[]) {
         return true;
     });
 
-    eventLoop.timer(7.5s, [&clients, &sendCallback](EventContext& context, const TimerEvent::Response& response) {
+    eventLoop.timer(13.5s, [&clients, &sendCallback](EventContext& context, const TimerEvent::Response& response) {
         std::cout << "Broadcasting message (elapsed: " << response.elapsed << ")" << std::endl;
 
         auto output = Buffer::fromString("Hello, All!\n");
@@ -129,7 +138,7 @@ int mainChatClient(int argc, char* argv[]) {
         });
 
         auto client = response.client;
-        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response    & response) {
+        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response& response) {
             context.eventLoop.send(client, Buffer::fromString(response.line), {});
             return true;
         });
@@ -165,16 +174,16 @@ int mainUdpServer(int argc, char* argv[]) {
     return 0;
 }
 
-int mainChatServerUDS(int argc, char* argv[]) {
+int mainChatServerUnix(int argc, char* argv[]) {
     using namespace std::chrono_literals;
     using namespace event_loop;
 
     std::stop_source stopSource;
     EventLoop eventLoop;
 
-    auto udsListener = eventLoop.udsListen("test.sock");
+    auto unixListener = eventLoop.unixListen("test.sock");
 
-    std::cout << "Server socket: " << udsListener.socket() << std::endl;
+    std::cout << "Server socket: " << unixListener.socket() << std::endl;
 
     std::map<Socket, ChatClient> clients;
     auto removeClient = [&](Socket client) {
@@ -189,7 +198,7 @@ int mainChatServerUDS(int argc, char* argv[]) {
         }
     };
 
-    eventLoop.accept(udsListener, [&](EventContext& context, const AcceptEvent::Response& response) {
+    eventLoop.accept(unixListener, [&](EventContext& context, const AcceptEvent::Response& response) {
         ChatClient client { response.client, response.clientAddress };
         std::cout << "Accepted client: " << client << std::endl;
         clients.insert({ response.client, client });
@@ -224,7 +233,7 @@ int mainChatServerUDS(int argc, char* argv[]) {
         return true;
     });
 
-    eventLoop.timer(7.5s, [&clients, &sendCallback](EventContext& context, const TimerEvent::Response& response) {
+    eventLoop.timer(13.5s, [&clients, &sendCallback](EventContext& context, const TimerEvent::Response& response) {
         std::cout << "Broadcasting message (elapsed: " << response.elapsed << ")" << std::endl;
 
         auto output = Buffer::fromString("Hello, All!\n");
@@ -242,7 +251,7 @@ int mainChatServerUDS(int argc, char* argv[]) {
     return 0;
 }
 
-int mainChatClientUDS(int argc, char* argv[]) {
+int mainChatClientUnix(int argc, char* argv[]) {
     using namespace std::chrono_literals;
     using namespace event_loop;
 
@@ -264,7 +273,7 @@ int mainChatClientUDS(int argc, char* argv[]) {
         });
 
         auto client = response.client;
-        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response    & response) {
+        context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response& response) {
             context.eventLoop.send(client, Buffer::fromString(response.line), {});
             return true;
         });
@@ -334,10 +343,10 @@ int main(int argc, char* argv[]) {
         return mainChatClient(argc, argv);
     } else if (command == "udp_server") {
         return mainUdpServer(argc, argv);
-    } else if (command == "uds_server") {
-        return mainChatServerUDS(argc, argv);
-    } else if (command == "uds_client") {
-        return mainChatClientUDS(argc, argv);
+    } else if (command == "unix_server") {
+        return mainChatServerUnix(argc, argv);
+    } else if (command == "unix_client") {
+        return mainChatClientUnix(argc, argv);
     } else if (command == "file") {
         return mainFile(argc, argv);
     }

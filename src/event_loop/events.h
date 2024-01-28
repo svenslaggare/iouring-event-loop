@@ -13,6 +13,9 @@
 #include "common.h"
 #include "buffer.h"
 
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 namespace event_loop {
     struct CloseEvent : public Event {
         AnyFd fd;
@@ -50,21 +53,29 @@ namespace event_loop {
         bool handle(EventContext& context) override;
     };
 
+    enum class SocketType {
+        Inet,
+        Unix
+    };
+
+    using SocketAddress = std::variant<sockaddr_in, sockaddr_un>;
+    SocketAddress defaultFor(SocketType type);
+
     struct AcceptEvent : public Event {
         Socket server;
 
-        sockaddr_in clientAddress {};
+        SocketAddress clientAddress;
         socklen_t clientAddressLength = sizeof(socklen_t);
 
         struct Response {
             Socket client;
-            sockaddr_in clientAddress {};
+            SocketAddress clientAddress {};
         };
 
         using Callback = std::function<bool (EventContext& context, const Response&)>;
         Callback callback;
 
-        AcceptEvent(EventId id, Socket server, Callback callback);
+        AcceptEvent(EventId id, Socket server, SocketType type, Callback callback);
 
         std::string name() const override;
         bool handle(EventContext& context) override;
@@ -72,11 +83,11 @@ namespace event_loop {
 
     struct ConnectEvent : public Event {
         Socket client;
-        std::variant<sockaddr_in, sockaddr_un> serverAddress;
+        SocketAddress serverAddress;
 
         struct Response {
             Socket client;
-            std::variant<sockaddr_in, sockaddr_un> serverAddress;
+            SocketAddress serverAddress;
             std::optional<std::string> error;
 
             const sockaddr_in& serverAddressInet() const;

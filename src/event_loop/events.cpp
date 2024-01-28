@@ -56,9 +56,21 @@ namespace event_loop {
         }
     }
 
-    AcceptEvent::AcceptEvent(EventId id, Socket server, Callback callback)
+    SocketAddress defaultFor(SocketType type) {
+        switch (type) {
+            case SocketType::Inet:
+                return { sockaddr_in {} };
+            case SocketType::Unix:
+                return { sockaddr_un {} };
+            default:
+                return {};
+        }
+    }
+
+    AcceptEvent::AcceptEvent(EventId id, Socket server, SocketType type, Callback callback)
         : Event(id),
           server(server),
+          clientAddress(defaultFor(type)),
           callback(std::move(callback)) {
 
     }

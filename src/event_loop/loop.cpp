@@ -13,9 +13,6 @@ namespace event_loop {
             timespec.tv_nsec = delay.count() % std::chrono::nanoseconds::period::den;
             return timespec;
         }
-
-        template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-        template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
     }
 
     SubmitGuard::SubmitGuard(EventLoop& eventLoop)
@@ -168,7 +165,7 @@ namespace event_loop {
         return Socket { socketFd };
     }
 
-    UDSListener EventLoop::udsListen(const std::string& path, int backlog) {
+    UnixListener EventLoop::unixListen(const std::string& path, int backlog) {
         auto socketFd = EventLoopException::throwIfFailed(socket(PF_UNIX, SOCK_STREAM, 0), "socket");
 
         sockaddr_un socketAddress {};
@@ -182,11 +179,11 @@ namespace event_loop {
         );
 
         EventLoopException::throwIfFailed(listen(socketFd, backlog), "listen");
-        return UDSListener { Socket { socketFd }, socketAddress };
+        return UnixListener { Socket { socketFd }, socketAddress };
     }
 
     void EventLoop::accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
-        auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
+        auto& event = createEvent<AcceptEvent>(listener.socket(), SocketType::Inet, std::move(callback));
         try {
             accept(event, submit);
         } catch (const EventLoopException& e) {
@@ -195,8 +192,8 @@ namespace event_loop {
         }
     }
 
-    void EventLoop::accept(UDSListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
-        auto& event = createEvent<AcceptEvent>(listener.socket(), std::move(callback));
+    void EventLoop::accept(UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
+        auto& event = createEvent<AcceptEvent>(listener.socket(), SocketType::Unix, std::move(callback));
         try {
             accept(event, submit);
         } catch (const EventLoopException& e) {
@@ -208,7 +205,14 @@ namespace event_loop {
     void EventLoop::accept(AcceptEvent& event, SubmitGuard* submit) {
         auto sqe = getSqe();
 
-        io_uring_prep_accept(sqe, event.server.fd, (sockaddr*)&event.clientAddress, &event.clientAddressLength, 0);
+        std::visit(overloaded {
+            [&](const sockaddr_in& address) {
+                io_uring_prep_accept(sqe, event.server.fd, (sockaddr*)&address, &event.clientAddressLength, 0);
+            },
+            [&](const sockaddr_un& address) {
+                io_uring_prep_accept(sqe, event.server.fd, (sockaddr*)&address, &event.clientAddressLength, 0);
+            },
+        }, event.clientAddress);
         sqe->user_data = event.id;
 
         submitRing(submit);

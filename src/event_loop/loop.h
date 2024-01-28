@@ -44,12 +44,12 @@ namespace event_loop {
         }
     };
 
-    class UDSListener {
+    class UnixListener {
     private:
         Socket mSocket;
         sockaddr_un mAddress;
     public:
-        explicit UDSListener(Socket socket, sockaddr_un address)
+        explicit UnixListener(Socket socket, sockaddr_un address)
             : mSocket(socket),
               mAddress(address)  {
 
@@ -110,10 +110,10 @@ namespace event_loop {
         // Sockets
         TcpListener tcpListen(in_addr address, std::uint16_t port, int backlog = 32);
         Socket udpReceiver(in_addr address, std::uint16_t port);
-        UDSListener udsListen(const std::string& path, int backlog = 32);
+        UnixListener unixListen(const std::string& path, int backlog = 32);
 
         void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
-        void accept(UDSListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void accept(UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(const std::string& path, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
 
