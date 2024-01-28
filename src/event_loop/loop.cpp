@@ -171,7 +171,7 @@ namespace event_loop {
         sockaddr_un socketAddress {};
         socketAddress.sun_family = AF_UNIX;
         strcpy(socketAddress.sun_path, path.c_str());
-        unlink(path.c_str());
+        EventLoopException::throwIfFailed(unlink(path.c_str()), "unlink");
 
         EventLoopException::throwIfFailed(
             bind(socketFd, (const sockaddr*)&socketAddress, sizeof(socketAddress)),
