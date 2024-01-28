@@ -415,6 +415,14 @@ namespace event_loop {
         );
     }
 
+    void EventLoop::printStdout(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit) {
+        writeFile(File::stdoutFile(), Buffer::fromString(string), std::move(callback), submit);
+    }
+
+    void EventLoop::printStderr(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit) {
+        writeFile(File::stderrFile(), Buffer::fromString(string), std::move(callback), submit);
+    }
+
     void EventLoop::submitRing(SubmitGuard* submit) {
         if (submit != nullptr) {
             submit->submit();

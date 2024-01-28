@@ -129,6 +129,8 @@ namespace event_loop {
 
         // Standard I/O
         void readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void printStdout(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void printStderr(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
     private:
         friend class SubmitGuard;
 

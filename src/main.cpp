@@ -133,7 +133,7 @@ int mainChatClient(int argc, char* argv[]) {
 
         context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
             std::string text { (char*)response.data, response.size };
-            context.eventLoop.writeFile(File::stdoutFile(), Buffer::fromString(text), {});
+            context.eventLoop.printStdout(text, {});
             return true;
         });
 
@@ -273,7 +273,7 @@ int mainChatClientUnix(int argc, char* argv[]) {
 
         context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
             std::string text { (char*)response.data, response.size };
-            context.eventLoop.writeFile(File::stdoutFile(), Buffer::fromString(text), {});
+            context.eventLoop.printStdout(text, {});
             return true;
         });
 
