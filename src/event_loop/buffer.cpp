@@ -33,8 +33,13 @@ namespace event_loop {
     }
 
     Buffer::Buffer(std::size_t size)
-        : mUnderlying(new BufferData(size)) {
+        : mUnderlying(new BufferData(size)), mSize(size) {
         mUnderlying->increaseUse();
+    }
+
+    Buffer::Buffer(BufferData* data, std::size_t offset, std::size_t size)
+        : mUnderlying(data), mOffset(offset), mSize(size) {
+
     }
 
     Buffer::~Buffer() {
@@ -48,7 +53,7 @@ namespace event_loop {
     }
 
     Buffer::Buffer(const Buffer& other)
-        : mUnderlying(other.mUnderlying) {
+        : mUnderlying(other.mUnderlying), mOffset(other.mOffset), mSize(other.mSize) {
         mUnderlying->increaseUse();
     }
 
@@ -56,6 +61,8 @@ namespace event_loop {
         if (&other != this) {
             decreaseUse();
             mUnderlying = other.mUnderlying;
+            mOffset = other.mOffset;
+            mSize = other.mSize;
 
             if (mUnderlying != nullptr) {
                 mUnderlying->increaseUse();
@@ -66,15 +73,23 @@ namespace event_loop {
     }
 
     Buffer::Buffer(Buffer&& other) noexcept
-        : mUnderlying(other.mUnderlying) {
+        : mUnderlying(other.mUnderlying), mOffset(other.mOffset), mSize(other.mSize) {
         other.mUnderlying = nullptr;
+        other.mOffset = 0;
+        other.mSize = 0;
     }
 
     Buffer& Buffer::operator=(Buffer&& other) noexcept {
         if (&other != this) {
             decreaseUse();
+
             mUnderlying = other.mUnderlying;
+            mOffset = other.mOffset;
+            mSize = other.mSize;
+
             other.mUnderlying = nullptr;
+            other.mOffset = 0;
+            other.mSize = 0;
         }
 
         return *this;
@@ -82,7 +97,7 @@ namespace event_loop {
 
     std::size_t Buffer::size() const {
         if (mUnderlying != nullptr) {
-            return mUnderlying->size();
+            return mSize;
         }
 
         return 0;
@@ -90,7 +105,7 @@ namespace event_loop {
 
     std::uint8_t* Buffer::data() const {
         if (mUnderlying != nullptr) {
-            return mUnderlying->data();
+            return mUnderlying->data() + mOffset;
         }
 
         return nullptr;
@@ -100,6 +115,23 @@ namespace event_loop {
         if (mUnderlying != nullptr) {
             mUnderlying->clear();
         }
+    }
+
+    Buffer Buffer::slice(std::size_t offset, std::size_t size) {
+        if (mUnderlying == nullptr) {
+            return *this;
+        }
+
+        if (offset >= mUnderlying->size()) {
+            throw std::runtime_error("offset too big");
+        }
+
+        if (offset + size > mUnderlying->size()) {
+            throw std::runtime_error("size too big");
+        }
+
+        mUnderlying->increaseUse();
+        return { mUnderlying, offset, size };
     }
 
     std::size_t Buffer::useCount() const {
@@ -116,6 +148,8 @@ namespace event_loop {
             if (mUnderlying->useCount() == 0) {
                 delete mUnderlying;
                 mUnderlying = nullptr;
+                mOffset = 0;
+                mSize = 0;
             }
         }
     }

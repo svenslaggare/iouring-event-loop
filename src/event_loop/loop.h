@@ -99,6 +99,9 @@ namespace event_loop {
 
         void run(std::stop_source& stopSource);
 
+        /**
+         * Request the given callback (potentially from another thread) to be executed on the event loop thread
+         */
         void dispatch(DispatchedCallback callback);
 
         // Generic

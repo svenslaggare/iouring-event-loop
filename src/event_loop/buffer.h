@@ -26,8 +26,11 @@ namespace event_loop {
     class Buffer {
     private:
         BufferData* mUnderlying = nullptr;
+        std::size_t mOffset = 0;
+        std::size_t mSize = 0;
 
         void decreaseUse();
+        Buffer(BufferData* data, std::size_t offset, std::size_t size);
     public:
         explicit Buffer(std::size_t size);
         ~Buffer();
@@ -43,6 +46,8 @@ namespace event_loop {
         std::size_t size() const;
         std::uint8_t* data() const;
         void clear();
+
+        Buffer slice(std::size_t offset, std::size_t size);
 
         std::size_t useCount() const;
     };
