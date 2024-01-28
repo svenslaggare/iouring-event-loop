@@ -133,13 +133,18 @@ int mainChatClient(int argc, char* argv[]) {
 
         context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
             std::string text { (char*)response.data, response.size };
-            std::cout << text;
+            context.eventLoop.writeFile(File::stdoutFile(), Buffer::fromString(text), {});
             return true;
         });
 
         auto client = response.client;
         context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response& response) {
-            context.eventLoop.send(client, Buffer::fromString(response.line), {});
+            context.eventLoop.send(client, Buffer::fromString(response.line), [](EventContext& context, const SendEvent::Response& callback) {
+                if (context.result < 0) {
+                    context.stopSource.request_stop();
+                }
+            });
+
             return true;
         });
     });
@@ -268,13 +273,18 @@ int mainChatClientUnix(int argc, char* argv[]) {
 
         context.eventLoop.receive(response.client, Buffer { 1024 }, [](EventContext& context, const ReceiveEvent::Response& response) {
             std::string text { (char*)response.data, response.size };
-            std::cout << text;
+            context.eventLoop.writeFile(File::stdoutFile(), Buffer::fromString(text), {});
             return true;
         });
 
         auto client = response.client;
         context.eventLoop.readLine(Buffer { 256 }, [client](EventContext& context, const ReadLineEvent::Response& response) {
-            context.eventLoop.send(client, Buffer::fromString(response.line), {});
+            context.eventLoop.send(client, Buffer::fromString(response.line), [](EventContext& context, const SendEvent::Response& callback) {
+                if (context.result < 0) {
+                    context.stopSource.request_stop();
+                }
+            });
+
             return true;
         });
     });

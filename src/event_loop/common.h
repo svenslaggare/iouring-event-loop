@@ -98,6 +98,14 @@ namespace event_loop {
     struct File : public TypedFd<File> {
         using TypedFd::TypedFd;
 
+        static inline File stdoutFile() {
+            return File { STDOUT_FILENO };
+        }
+
+        static inline File stderrFile() {
+            return File { STDERR_FILENO };
+        }
+
         static inline File stdinFile() {
             return File { STDIN_FILENO };
         }
