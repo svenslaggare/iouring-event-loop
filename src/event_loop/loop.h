@@ -72,6 +72,8 @@ namespace event_loop {
 
         std::mutex mDispatchedMutex;
         std::vector<DispatchedCallback> mDispatched;
+
+        BufferManager mBufferManager;
     public:
         explicit EventLoop(std::uint32_t depth = 256);
         ~EventLoop();
@@ -116,6 +118,9 @@ namespace event_loop {
         void readLine(Buffer buffer, ReadLineEvent::Callback callback, SubmitGuard* submit = nullptr);
         void printStdout(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
         void printStderr(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit = nullptr);
+
+        Buffer allocate(std::size_t size);
+        void deallocate(Buffer buffer);
     private:
         friend class SubmitGuard;
 
@@ -139,6 +144,8 @@ namespace event_loop {
         void readFile(ReadFileEvent& event, SubmitGuard* submit);
         void writeFile(WriteFileEvent& event, SubmitGuard* submit);
         void readFileStats(ReadFileStatsEvent& event, SubmitGuard* submit);
+
+        void printFile(File file, const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit);
 
         void submitRing(SubmitGuard* submit);
         io_uring_sqe* getSqe();

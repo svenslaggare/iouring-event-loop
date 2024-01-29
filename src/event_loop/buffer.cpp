@@ -117,21 +117,21 @@ namespace event_loop {
         }
     }
 
-    Buffer Buffer::slice(std::size_t offset, std::size_t size) {
+    std::optional<Buffer> Buffer::slice(std::size_t offset, std::size_t size) {
         if (mUnderlying == nullptr) {
             return *this;
         }
 
         if (offset >= mUnderlying->size()) {
-            throw std::runtime_error("offset too big");
+            return {};
         }
 
         if (offset + size > mUnderlying->size()) {
-            throw std::runtime_error("size too big");
+            return {};
         }
 
         mUnderlying->increaseUse();
-        return { mUnderlying, offset, size };
+        return { { mUnderlying, offset, size } };
     }
 
     std::size_t Buffer::useCount() const {
@@ -152,5 +152,22 @@ namespace event_loop {
                 mSize = 0;
             }
         }
+    }
+
+    Buffer BufferManager::allocate(std::size_t size) {
+        for (std::size_t index = 0; index < mBuffers.size(); index++) {
+            if (auto buffer = mBuffers[index].slice(0, size)) {
+                mBuffers.erase(mBuffers.begin() + (std::int64_t)index);
+                return *buffer;
+            }
+        }
+
+        constexpr auto bufferSize = 32;
+        Buffer buffer { ((size + bufferSize - 1) / bufferSize) * bufferSize };
+        return *(buffer.slice(0, size));
+    }
+
+    void BufferManager::deallocate(Buffer buffer) {
+        mBuffers.push_back(std::move(buffer));
     }
 }

@@ -447,12 +447,37 @@ namespace event_loop {
         );
     }
 
+    void EventLoop::printFile(File file, const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit) {
+        auto buffer = mBufferManager.allocate(string.size());
+        memcpy(buffer.data(), string.data(), string.size());
+        writeFile(
+            file,
+            buffer,
+            [buffer, callback = std::move(callback)](EventContext& context, const WriteFileEvent::Response& response) {
+                context.eventLoop.deallocate(buffer);
+
+                if (callback) {
+                    callback(context, response);
+                }
+            },
+            submit
+        );
+    }
+
     void EventLoop::printStdout(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit) {
-        writeFile(File::stdoutFile(), Buffer::fromString(string), std::move(callback), submit);
+        printFile(File::stdoutFile(), string, std::move(callback), submit);
     }
 
     void EventLoop::printStderr(const std::string_view& string, WriteFileEvent::Callback callback, SubmitGuard* submit) {
-        writeFile(File::stderrFile(), Buffer::fromString(string), std::move(callback), submit);
+        printFile(File::stderrFile(), string, std::move(callback), submit);
+    }
+
+    Buffer EventLoop::allocate(std::size_t size) {
+        return mBufferManager.allocate(size);
+    }
+
+    void EventLoop::deallocate(Buffer buffer) {
+        mBufferManager.deallocate(std::move(buffer));
     }
 
     void EventLoop::submitRing(SubmitGuard* submit) {

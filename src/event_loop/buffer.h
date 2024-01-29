@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <optional>
 
 namespace event_loop {
     class BufferData {
@@ -47,8 +48,16 @@ namespace event_loop {
         std::uint8_t* data() const;
         void clear();
 
-        Buffer slice(std::size_t offset, std::size_t size);
+        std::optional<Buffer> slice(std::size_t offset, std::size_t size);
 
         std::size_t useCount() const;
+    };
+
+    class BufferManager {
+    private:
+        std::vector<Buffer> mBuffers;
+    public:
+        Buffer allocate(std::size_t size);
+        void deallocate(Buffer buffer);
     };
 }
