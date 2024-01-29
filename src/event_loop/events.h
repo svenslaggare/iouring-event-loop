@@ -219,7 +219,7 @@ namespace event_loop {
 
     struct ReadLineEvent {
         struct Response {
-            std::string line;
+            const std::string& line;
         };
 
         using Callback = std::function<bool (EventContext& context, const Response&)>;
