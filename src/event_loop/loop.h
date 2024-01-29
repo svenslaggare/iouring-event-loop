@@ -82,6 +82,7 @@ namespace event_loop {
         EventLoop& operator=(const EventLoop&) = delete;
 
         void run(std::stop_source& stopSource);
+        bool runOnce(std::stop_source& stopSource, std::chrono::duration<double> maxDuration);
 
         /**
          * Request the given callback (potentially from another thread) to be executed on the event loop thread

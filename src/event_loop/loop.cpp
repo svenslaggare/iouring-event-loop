@@ -74,28 +74,33 @@ namespace event_loop {
         using namespace std::chrono_literals;
 
         while (!stopSource.stop_requested()) {
-            io_uring_cqe* cqe = nullptr;
-            auto delay = createKernelTimeSpec(std::chrono::duration_cast<std::chrono::nanoseconds>(0.5s));
-            auto result = io_uring_wait_cqe_timeout(&mRing, &cqe, &delay);
-            if (result == -ETIME) {
-                executeDispatched();
-                continue;
-            }
-
-            EventLoopException::throwIfFailed(result, "io_uring_wait_cqe_timeout");
-
-            auto eventId = cqe->user_data;
-            auto& event = mEvents[eventId];
-//            std::cout << "Event: " << event->id << ", type: " << event->name() << ", status: " << cqe->res << std::endl;
-
-            EventContext context { *this, stopSource, cqe->res };
-            if (!event->handle(context)) {
-                removeEvent(eventId);
-            }
-
-            io_uring_cqe_seen(&mRing, cqe);
-            executeDispatched();
+            runOnce(stopSource, 0.5s);
         }
+    }
+
+    bool EventLoop::runOnce(std::stop_source& stopSource, std::chrono::duration<double> maxDuration) {
+        io_uring_cqe* cqe = nullptr;
+        auto delay = createKernelTimeSpec(std::chrono::duration_cast<std::chrono::nanoseconds>(maxDuration));
+        auto result = io_uring_wait_cqe_timeout(&mRing, &cqe, &delay);
+        if (result == -ETIME) {
+            executeDispatched();
+            return false;
+        }
+
+        EventLoopException::throwIfFailed(result, "io_uring_wait_cqe_timeout");
+
+        auto eventId = cqe->user_data;
+        auto& event = mEvents[eventId];
+//        std::cout << "Event: " << event->id << ", type: " << event->name() << ", status: " << cqe->res << std::endl;
+
+        EventContext context { *this, stopSource, cqe->res };
+        if (!event->handle(context)) {
+            removeEvent(eventId);
+        }
+
+        io_uring_cqe_seen(&mRing, cqe);
+        executeDispatched();
+        return true;
     }
 
     void EventLoop::dispatch(DispatchedCallback callback) {
@@ -132,8 +137,8 @@ namespace event_loop {
     }
 
     void EventLoop::timer(std::chrono::duration<double> duration, TimerEvent::Callback callback, SubmitGuard* submit) {
-        auto durationNs = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
-        auto& event = createEvent<TimerEvent>(durationNs, std::move(callback));
+        auto durationNanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+        auto& event = createEvent<TimerEvent>(durationNanoseconds, std::move(callback));
         try {
             timer(event, submit);
         } catch (const EventLoopException& e) {
@@ -294,7 +299,6 @@ namespace event_loop {
                 io_uring_prep_connect(sqe, event.client.fd, (sockaddr*)&serverAddress, sizeof(serverAddress));
             },
         }, event.serverAddress);
-
         sqe->user_data = event.id;
 
         submitRing(submit);
