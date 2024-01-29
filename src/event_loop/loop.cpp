@@ -9,8 +9,12 @@ namespace event_loop {
     namespace {
         __kernel_timespec createKernelTimeSpec(std::chrono::nanoseconds delay) {
             __kernel_timespec timespec {};
-            timespec.tv_sec = delay.count() / std::chrono::nanoseconds::period::den;
-            timespec.tv_nsec = delay.count() % std::chrono::nanoseconds::period::den;
+
+            if (delay.count() > 0) {
+                timespec.tv_sec = delay.count() / std::chrono::nanoseconds::period::den;
+                timespec.tv_nsec = delay.count() % std::chrono::nanoseconds::period::den;
+            }
+
             return timespec;
         }
     }
@@ -154,6 +158,7 @@ namespace event_loop {
 
     TcpListener EventLoop::tcpListen(in_addr address, std::uint16_t port, int backlog) {
         auto socketFd = EventLoopException::throwIfFailed(socket(PF_INET, SOCK_STREAM, 0), "socket");
+
         int enable = 1;
         EventLoopException::throwIfFailed(
             setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)),
