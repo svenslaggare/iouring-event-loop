@@ -29,19 +29,10 @@ namespace event_loop {
         Socket mSocket;
         sockaddr_in mAddress;
     public:
-        explicit TcpListener(Socket socket, sockaddr_in address)
-            : mSocket(socket),
-              mAddress(address)  {
+        explicit TcpListener(Socket socket, sockaddr_in address);
 
-        }
-
-        Socket socket() const {
-            return mSocket;
-        }
-
-        const sockaddr_in& address() const {
-            return mAddress;
-        }
+        Socket socket() const;
+        const sockaddr_in& address() const;
     };
 
     class UnixListener {
@@ -49,19 +40,10 @@ namespace event_loop {
         Socket mSocket;
         sockaddr_un mAddress;
     public:
-        explicit UnixListener(Socket socket, sockaddr_un address)
-            : mSocket(socket),
-              mAddress(address)  {
+        explicit UnixListener(Socket socket, sockaddr_un address);
 
-        }
-
-        Socket socket() const {
-            return mSocket;
-        }
-
-        const sockaddr_un& address() const {
-            return mAddress;
-        }
+        Socket socket() const;
+        const sockaddr_un& address() const;
     };
 
     class EventLoop;
@@ -115,8 +97,8 @@ namespace event_loop {
         Socket udpReceiver(in_addr address, std::uint16_t port);
         UnixListener unixListen(const std::string& path, int backlog = 32);
 
-        void accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
-        void accept(UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void accept(const TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
+        void accept(const UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(in_addr_t address, std::uint16_t port, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
         void connect(const std::string& path, ConnectEvent::Callback callback, SubmitGuard* submit = nullptr);
 

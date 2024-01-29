@@ -15,6 +15,33 @@ namespace event_loop {
         }
     }
 
+    TcpListener::TcpListener(Socket socket, sockaddr_in address)
+        : mSocket(socket), mAddress(address)
+    {
+
+    }
+
+    Socket TcpListener::socket() const {
+        return mSocket;
+    }
+
+    const sockaddr_in& TcpListener::address() const {
+        return mAddress;
+    }
+
+    UnixListener::UnixListener(Socket socket, sockaddr_un address)
+        : mSocket(socket), mAddress(address) {
+
+    }
+
+    Socket UnixListener::socket() const {
+        return mSocket;
+    }
+
+    const sockaddr_un& UnixListener::address() const {
+        return mAddress;
+    }
+
     SubmitGuard::SubmitGuard(EventLoop& eventLoop)
         : mEventLoop(eventLoop) {
 
@@ -182,7 +209,7 @@ namespace event_loop {
         return UnixListener { Socket { socketFd }, socketAddress };
     }
 
-    void EventLoop::accept(TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
+    void EventLoop::accept(const TcpListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
         auto& event = createEvent<AcceptEvent>(listener.socket(), SocketType::Inet, std::move(callback));
         try {
             accept(event, submit);
@@ -192,7 +219,7 @@ namespace event_loop {
         }
     }
 
-    void EventLoop::accept(UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
+    void EventLoop::accept(const UnixListener& listener, AcceptEvent::Callback callback, SubmitGuard* submit) {
         auto& event = createEvent<AcceptEvent>(listener.socket(), SocketType::Unix, std::move(callback));
         try {
             accept(event, submit);
