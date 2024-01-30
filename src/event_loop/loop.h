@@ -72,7 +72,7 @@ namespace event_loop {
 
         std::mutex mDispatchMutex;
         std::vector<DispatchedCallback> mDispatchQueue;
-        std::vector<DispatchedCallback> mDispatchedExecuting;
+        std::vector<DispatchedCallback> mExecutingDispatched;
 
         BufferManager mBufferManager;
     public:

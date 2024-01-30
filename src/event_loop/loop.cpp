@@ -111,13 +111,13 @@ namespace event_loop {
     void EventLoop::executeDispatched() {
         {
             std::scoped_lock guard(mDispatchMutex);
-            std::swap(mDispatchQueue, mDispatchedExecuting);
+            std::swap(mDispatchQueue, mExecutingDispatched);
         }
 
-        for (auto& dispatch : mDispatchedExecuting) {
+        for (auto& dispatch : mExecutingDispatched) {
             dispatch(*this);
         }
-        mDispatchedExecuting.clear();
+        mExecutingDispatched.clear();
     }
 
     void EventLoop::close(AnyFd fd, CloseEvent::Callback callback, SubmitGuard* submit) {
