@@ -70,8 +70,9 @@ namespace event_loop {
         EventId mNextEventId = 1;
         std::unordered_map<EventId, std::unique_ptr<Event>> mEvents;
 
-        std::mutex mDispatchedMutex;
-        std::vector<DispatchedCallback> mDispatched;
+        std::mutex mDispatchMutex;
+        std::vector<DispatchedCallback> mDispatchQueue;
+        std::vector<DispatchedCallback> mDispatchedExecuting;
 
         BufferManager mBufferManager;
     public:

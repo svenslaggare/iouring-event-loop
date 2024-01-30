@@ -104,17 +104,20 @@ namespace event_loop {
     }
 
     void EventLoop::dispatch(DispatchedCallback callback) {
-        std::scoped_lock guard(mDispatchedMutex);
-        mDispatched.push_back(std::move(callback));
+        std::scoped_lock guard(mDispatchMutex);
+        mDispatchQueue.push_back(std::move(callback));
     }
 
     void EventLoop::executeDispatched() {
-        std::scoped_lock guard(mDispatchedMutex);
+        {
+            std::scoped_lock guard(mDispatchMutex);
+            std::swap(mDispatchQueue, mDispatchedExecuting);
+        }
 
-        for (auto& dispatch : mDispatched) {
+        for (auto& dispatch : mDispatchedExecuting) {
             dispatch(*this);
         }
-        mDispatched.clear();
+        mDispatchedExecuting.clear();
     }
 
     void EventLoop::close(AnyFd fd, CloseEvent::Callback callback, SubmitGuard* submit) {
